@@ -12,6 +12,8 @@ The PrysmCallbackHandler captures:
 - on_agent_action/finish: tool name, return values, log text
 
 Events are batched and sent to /telemetry/events with source="langchain".
+
+All LLM calls route through the Prysm proxy — no separate OPENAI_API_KEY needed.
 """
 import os
 from langchain_openai import ChatOpenAI
@@ -20,10 +22,14 @@ from langchain_core.output_parsers import StrOutputParser
 from prysmai.integrations.langchain import PrysmCallbackHandler
 from prysmai import prysm_context
 
+# ─── Prysm proxy configuration ───
+PRYSM_API_KEY = os.environ["PRYSM_API_KEY"]
+PRYSM_BASE_URL = os.environ.get("PRYSM_BASE_URL", "https://prysmai.io/api/v1")
+
 # Initialize the Prysm callback handler
 handler = PrysmCallbackHandler(
-    api_key=os.environ["PRYSM_API_KEY"],
-    base_url=os.environ.get("PRYSM_BASE_URL", "https://prysmai.io/api/v1"),
+    api_key=PRYSM_API_KEY,
+    base_url=PRYSM_BASE_URL,
     session_id=None,   # auto-generated per invocation
     user_id=None,       # set per-request via prysm_context
     metadata={"pipeline": "langchain", "app": "content-moderator"},
@@ -31,7 +37,7 @@ handler = PrysmCallbackHandler(
     flush_interval=5.0, # flush every 5 seconds max
 )
 
-# Build a content moderation chain
+# Build a content moderation chain prompt
 prompt = ChatPromptTemplate.from_messages([
     ("system", """You are a content moderation assistant. Analyze the following text 
     and provide a moderation assessment. Include:
@@ -43,13 +49,24 @@ prompt = ChatPromptTemplate.from_messages([
     ("human", "{text}"),
 ])
 
-model = ChatOpenAI(model="gpt-4.1-mini", temperature=0.1)
-chain = prompt | model | StrOutputParser()
+
+def _get_chain(model_name: str = "gpt-4.1-mini"):
+    """Create a LangChain chain routed through the Prysm proxy."""
+    model = ChatOpenAI(
+        model=model_name,
+        temperature=0.1,
+        openai_api_key=PRYSM_API_KEY,
+        openai_api_base=PRYSM_BASE_URL,
+    )
+    return prompt | model | StrOutputParser()
 
 
-async def run_langchain_moderation(text: str, user_id: str) -> dict:
+async def run_langchain_moderation(text: str, user_id: str, model_name: str = "gpt-4.1-mini") -> dict:
     """
     Run the LangChain moderation pipeline with Prysm monitoring.
+
+    All LLM calls are routed through the Prysm proxy (PRYSM_BASE_URL).
+    No separate OPENAI_API_KEY is needed — Prysm injects the provider key.
 
     The PrysmCallbackHandler captures:
     - on_chat_model_start: model name, messages
@@ -58,7 +75,9 @@ async def run_langchain_moderation(text: str, user_id: str) -> dict:
 
     All events are batched and sent to /telemetry/events with source="langchain".
     """
-    with prysm_context(user_id=user_id, metadata={"pipeline": "langchain"}):
+    chain = _get_chain(model_name)
+
+    with prysm_context(user_id=user_id, metadata={"pipeline": "langchain", "model": model_name}):
         result = await chain.ainvoke(
             {"text": text},
             config={"callbacks": [handler]},
@@ -69,6 +88,7 @@ async def run_langchain_moderation(text: str, user_id: str) -> dict:
 
     return {
         "pipeline": "langchain",
+        "model": model_name,
         "result": result,
         "events_captured": [
             "chat_model_start",
