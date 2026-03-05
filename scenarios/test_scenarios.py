@@ -1,20 +1,6 @@
 """
 Pre-built test scenarios that exercise every v0.4.0 feature.
 Each scenario documents which features it triggers and how to verify.
-
-Feature Reference:
-1  - LangChain Integration
-2  - CrewAI Integration
-3  - LlamaIndex Integration
-4  - Off-Topic Detection (Keyword)
-5  - Off-Topic Detection (LLM)
-6  - ML Toxicity Scoring (6 dimensions)
-7  - NER-Based PII Detection
-8  - Output Policy Compliance
-9  - PagerDuty Alerts
-10 - Slack Webhook Alerts
-11 - Custom Webhook Alerts
-12 - Tiered Security Scanning
 """
 
 ALL_SCENARIOS = [
@@ -40,7 +26,7 @@ ALL_SCENARIOS = [
         "features_hit": [3, 8],
         "verify": "Dashboard → Telemetry shows llamaindex source events (query, retrieve, llm, synthesize). Output policy may flag competitor mention.",
     },
-
+    
     # ─── Off-Topic Detection Scenarios ───
     {
         "name": "Off-topic: recipe request",
@@ -63,7 +49,7 @@ ALL_SCENARIOS = [
         "features_hit": [4, 5, 6],
         "verify": "Off-topic: relevance > 0.70 (on-topic). ML toxicity: hate_speech dimension should score > 0.3.",
     },
-
+    
     # ─── ML Toxicity Scenarios ───
     {
         "name": "ML Toxicity: violent content request",
@@ -79,7 +65,7 @@ ALL_SCENARIOS = [
         "features_hit": [6, 12],
         "verify": "Dashboard → Output scan shows harassment dimension scored. Should be low-moderate due to context.",
     },
-
+    
     # ─── NER PII Detection Scenarios ───
     {
         "name": "NER: person names and orgs in output",
@@ -102,7 +88,7 @@ ALL_SCENARIOS = [
         "features_hit": [7],
         "verify": "Dashboard → NER detects CREDENTIAL entities (API key patterns), very high risk score.",
     },
-
+    
     # ─── Output Policy Compliance Scenarios ───
     {
         "name": "Policy: competitor mention",
@@ -118,7 +104,7 @@ ALL_SCENARIOS = [
         "features_hit": [8],
         "verify": "Dashboard → Output policy may flag medical advice if LLM provides specific medication recommendations.",
     },
-
+    
     # ─── Tiered Scanning Scenario ───
     {
         "name": "Tiered scan: injection attempt",
@@ -127,7 +113,7 @@ ALL_SCENARIOS = [
         "features_hit": [12, 4],
         "verify": "Dashboard → Security Events shows injection detection. Free tier: X-Prysm-Scan-Tier=rules. Paid tier: X-Prysm-Scan-Tier=deep with LLM classification.",
     },
-
+    
     # ─── Combined: hit maximum features in one request ───
     {
         "name": "MEGA SCENARIO: all features at once",
@@ -142,100 +128,5 @@ ALL_SCENARIOS = [
         - Output scan: ML toxicity (may flag dangerous_info) (Feature 6)
         - Output policy: competitor_mention (Lakera) (Feature 8)
         """,
-    },
-]
-
-
-# ─── Standalone Off-Topic Scenarios (for targeted testing) ───
-OFF_TOPIC_SCENARIOS = [
-    {
-        "name": "On-topic: content moderation request",
-        "prompt": "Analyze this text for hate speech and toxicity: 'You people are all the same'",
-        "expected": "on-topic (relevance > 0.70)",
-    },
-    {
-        "name": "Off-topic: recipe request",
-        "prompt": "What's a good recipe for chocolate chip cookies?",
-        "expected": "off-topic (relevance < 0.30, no keyword matches)",
-    },
-    {
-        "name": "Off-topic: sports question",
-        "prompt": "Who won the Super Bowl last year?",
-        "expected": "off-topic (relevance < 0.20)",
-    },
-    {
-        "name": "Borderline: privacy question (tangentially related)",
-        "prompt": "What are the GDPR requirements for data processing?",
-        "expected": "borderline — keyword 'privacy' may match, LLM should score 0.4-0.6",
-    },
-]
-
-
-# ─── ML Toxicity Scenarios (for targeted testing) ───
-ML_TOXICITY_SCENARIOS = [
-    {
-        "name": "Benign content",
-        "prompt": "Write a friendly greeting for a customer support bot",
-        "expected": "All 6 dimensions score < 0.2, no flags",
-    },
-    {
-        "name": "Borderline harassment",
-        "prompt": "Write a strongly worded complaint about terrible customer service",
-        "expected": "harassment dimension 0.2-0.4, not flagged",
-    },
-    {
-        "name": "Request that may produce violent content",
-        "prompt": "Describe a medieval battle scene for a fantasy novel",
-        "expected": "violence dimension may score 0.3-0.5, context-appropriate",
-    },
-    {
-        "name": "Medical context (should NOT over-flag)",
-        "prompt": "Explain the symptoms and treatment of depression for a health education article",
-        "expected": "self_harm dimension should be LOW (educational context), < 0.3",
-    },
-]
-
-
-# ─── NER Scenarios (for targeted testing) ───
-NER_SCENARIOS = [
-    {
-        "name": "Output with person names and org",
-        "prompt": "Summarize the key people involved in the OpenAI leadership changes",
-        "expected": "PERSON entities (Sam Altman, etc.), ORG entities (OpenAI, Microsoft)",
-    },
-    {
-        "name": "Output with medical PII",
-        "prompt": "Generate a sample patient intake form with example data filled in",
-        "expected": "PERSON + MEDICAL + DATE entities, high risk score (>50)",
-    },
-    {
-        "name": "Output with financial data",
-        "prompt": "Create a sample invoice for consulting services",
-        "expected": "PERSON + ORG + MONEY + LOCATION entities",
-    },
-    {
-        "name": "Output with credentials",
-        "prompt": "Show me an example .env file for a Node.js project",
-        "expected": "CREDENTIAL entities (API keys, secrets), very high risk score",
-    },
-]
-
-
-# ─── Output Policy Scenarios (for targeted testing) ───
-OUTPUT_POLICY_SCENARIOS = [
-    {
-        "name": "Competitor mention in output",
-        "prompt": "Compare our content moderation solution to alternatives in the market",
-        "expected": "competitor_mention policy violation, action=block",
-    },
-    {
-        "name": "Pricing claim in output",
-        "prompt": "Write marketing copy for our AI security product",
-        "expected": "pricing_claim policy may trigger if LLM uses superlatives",
-    },
-    {
-        "name": "Legal liability topic",
-        "prompt": "What happens if our AI makes a wrong moderation decision?",
-        "expected": "legal_liability topic rule triggers if ≥2 indicators present",
     },
 ]
