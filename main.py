@@ -105,7 +105,7 @@ async def moderate(req: ModerateRequest):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "sdk_version": "0.4.0"}
+    return {"status": "ok", "sdk_version": "0.4.1"}
 
 
 @app.post("/run-all-scenarios")
